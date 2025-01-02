@@ -1,0 +1,101 @@
+name: CD
+
+permissions:
+  contents: read
+  id-token: write
+
+on:
+  push:
+    branches: ["prod", "dev"]
+  
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    env: 
+      BRANCH_NAME: "update-image-${{ github.run_id }}"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set inputs based on branch
+        id: set-repo
+        run: |
+          if [ "${{ github.ref_name }}" = "dev" ]; then
+            echo "role=arn:aws:iam::789248412670:role/github_oidc_ecs_deployments" | tee -a $GITHUB_OUTPUT
+            echo "repo=789248412670.dkr.ecr.us-east-1.amazonaws.com/toolbot" | tee -a $GITHUB_OUTPUT
+            echo "registry=789248412670"
+          else
+            echo "role=arn:aws:iam::736650930081:role/github_oidc_ecs_deployments" | tee -a $GITHUB_OUTPUT
+            echo "repo=736650930081.dkr.ecr.us-east-1.amazonaws.com/toolbot" | tee -a $GITHUB_OUTPUT
+            echo "registry=736650930081"
+          fi
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ steps.set-repo.outputs.role }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registries: ${{ steps.set-repo.outputs.registry }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          platforms: linux/amd64
+          build-args: BUILD_VERSION=${{ github.run_id }}
+          tags: |
+            ${{ steps.set-repo.outputs.repo }}:${{ github.run_id }}
+
+      - name: Checkout target repository
+        if: github.ref_name == 'prod'
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.TOOLS_GH_TOKEN }}
+          repository: Shiphero/application-platform-management-stack
+          ref: main
+          fetch-depth: 0
+          path: app-platform-repo 
+
+      - name: Modify Tool-hub terraform
+        if: github.ref_name == 'prod'
+        run: |
+          cd app-platform-repo
+
+          FILE_PATH="environments/prd/tools-hub/us-east-1.tfvars"
+          NEW_TAG="${{ steps.set-repo.outputs.repo }}:${{ github.run_id }}"
+          
+          # Update the file with the new image tag
+          sed -i "s|image  = \\\".*\\\"|image  = \\\"$NEW_TAG\\\"|" "$FILE_PATH"
+          
+          # Commit and push changes
+          git config user.name "Toolbot"
+          git config user.email "tools@shiphero.com"
+          git checkout -b "$BRANCH_NAME"
+          git add "$FILE_PATH"
+          git commit -m "Update image to $NEW_TAG"
+          git push origin "$BRANCH_NAME"
+          
+      - name: Create Pull Request
+        if: github.ref_name == 'prod'
+        env:
+          GH_TOKEN: ${{ secrets.TOOLS_GH_TOKEN }}
+        run: |
+          NEW_TAG="${{ steps.set-repo.outputs.repo }}:${{ github.run_id }}"
+          
+          cd app-platform-repo
+          PR_URL=$(gh pr create \
+                --title "feat(PLAT-1360): Deploy new toolbot image" \
+                --body "This PR updates the image to $NEW_TAG.
+
+          Compare: ${{ github.event.compare }}
+          Run ID: https://github.com/Shiphero/Shiphero-API/actions/runs/${{ github.run_id }}" \
+                --reviewer "FranR" \
+                --assignee "FranR" \
+                --base "main" \
+                --head "$BRANCH_NAME")
+              echo "## $PR_URL" >> $GITHUB_STEP_SUMMARY

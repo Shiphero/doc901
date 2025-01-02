@@ -1,0 +1,31 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "doc901"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "ruff",
+    "rich",
+]
+authors = [
+    {name = "Martín Gaitán", email = "marting@shiphero.com"}
+]
+dynamic = ["version", "description"]
+
+[project.urls]
+Home = "https://github.com/mgaitan/doc901"
+
+[project.scripts]
+doc901 = "doc901:main"
+
+[tool.ruff]
+line-length = 120
+
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.4",
+]
