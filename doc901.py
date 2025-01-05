@@ -10,7 +10,8 @@ import sys
 from rich import print
 
 __version__ = "0.1"
-here = Path(".").resolve()
+here = Path.cwd().resolve()
+
 
 def analyze_complexity_with_docstrings(target_path: Path, complexity: int):
     """
@@ -47,32 +48,28 @@ def analyze_complexity_with_docstrings(target_path: Path, complexity: int):
 
     # Extract complexity issues and docstring violations with both row and filename
     complexity_issues = {
-        (issue["filename"], issue["noqa_row"]): issue["message"]
-        for issue in issues
-        if issue["code"] == "C901"
+        (issue["filename"], int(issue["noqa_row"])): issue["message"] for issue in issues if issue["code"] == "C901"
     }
-    docstring_issues = {
-        (issue["filename"], issue["noqa_row"])
-        for issue in issues
-        if issue["code"].startswith("D1")
-    }
+    docstring_issues = {(issue["filename"], issue["noqa_row"]) for issue in issues if issue["code"].startswith("D1")}
     # Identify violations: complexity issues without corresponding docstring rows
-    violations = set(complexity_issues.keys() & docstring_issues)
+    violations = sorted(set(complexity_issues.keys()) & docstring_issues)
 
     if violations:
         for violation in violations:
-            print(f"[bold]{Path(violation[0]).relative_to(here)}:{violation[1]}[/bold]: {complexity_issues[violation]}. Add a docstring.")
+            print(
+                f"[bold]{Path(violation[0]).relative_to(here)}:{violation[1]}[/bold]: {complexity_issues[violation]}. Add a docstring."
+            )
         sys.exit(1)
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(
         description="Check methods with high complexity for missing docstrings using Ruff."
     )
     parser.add_argument(
         "target_path",
         type=str,
-        help="Path to the target file or directory to analyze.",
+        help="Target file or directory to analyze.",
     )
     parser.add_argument(
         "--max-complexity",
@@ -80,7 +77,7 @@ def main():
         default=4,
         help="Maximum complexity without docstrings to allow.",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     analyze_complexity_with_docstrings(args.target_path, args.max_complexity)
 
