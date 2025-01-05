@@ -44,5 +44,5 @@ def test_dir(capsys):
     assert result == [
         "tests/assets/example.py:8: `complex_method_without_docstring` is too complex (5 > 4). Add a docstring.",
         "tests/assets/example.py:38: `complex_function_without_docstring` is too complex (7 > 4). Add a docstring.",
-        "tests/assets/example2.py:2: `another_complex_function` is too complex (5 > 4). Add a docstring.",
+        "tests/assets/example2.py:1: `another_complex_function` is too complex (5 > 4). Add a docstring.",
     ]
