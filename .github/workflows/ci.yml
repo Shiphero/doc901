@@ -9,18 +9,27 @@ on:
 
 
 jobs:
-  build:
+  lint:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v3      
-        
+      - uses: astral-sh/setup-uv@v3   
+
       - name: Ruff check 
         run: uv run ruff check --output-format=github
 
       - name: Ruff format
         run: uv run ruff format --check
+   
+  test:
+      needs: lint
+      runs-on: ubuntu-latest
+      strategy:
+        matrix:
+          python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
       
-      - name: Test
-        run: uv run pytest
+      steps:
+        - uses: actions/checkout@v4
+        - uses: astral-sh/setup-uv@v3
+        - run: UV_PYTHON=${{ matrix.python-version }} uv run pytest
+        

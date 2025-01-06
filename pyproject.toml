@@ -5,7 +5,7 @@ build-backend = "flit_core.buildapi"
 [project]
 name = "doc901"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.9"
 dependencies = [
     "ruff",
     "rich",
