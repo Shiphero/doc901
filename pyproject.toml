@@ -16,7 +16,7 @@ authors = [
 dynamic = ["version", "description"]
 
 [project.urls]
-Home = "https://github.com/mgaitan/doc901"
+Home = "https://github.com/shiphero/doc901"
 
 [project.scripts]
 doc901 = "doc901:main"
