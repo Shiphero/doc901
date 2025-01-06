@@ -13,34 +13,34 @@ __version__ = "0.1"
 here = Path.cwd().resolve()
 
 
-def analyze_complexity_with_docstrings(files: list, complexity: int):
+def analyze_complexity_with_docstrings(files: list, complexity: int, excludes: list):
     """
     Run Ruff with a custom config to check methods with high complexity
     and missing docstrings.
     """
     # Run Ruff with the specified configuration
-    result = subprocess.run(
-        [
-            "ruff",
-            "check",
-            "-e",
-            "--config",
-            f"lint.mccabe.max-complexity={complexity}",
-            "--select",
-            "C901",
-            "--select",
-            "D102",
-            "--select",
-            "D103",
-            "--select",
-            "E902",
-            "--output-format",
-            "json",
-            *files,
-        ],
-        capture_output=True,
-        text=True,
-    )
+    command = [
+        "ruff",
+        "check",
+        "-e",
+        "--config",
+        f"lint.mccabe.max-complexity={complexity}",
+        "--select",
+        "C901",
+        "--select",
+        "D102",
+        "--select",
+        "D103",
+        "--select",
+        "E902",
+        "--output-format",
+        "json",
+    ]
+    for exclude in excludes:
+        command += ["--exclude", exclude]
+    command += files
+
+    result = subprocess.run(command, text=True, capture_output=True)
     if result.returncode not in [0, 1]:
         print("Error running Ruff:", result.stderr, file=sys.stderr)
         sys.exit(result.returncode)
@@ -88,9 +88,15 @@ def main(argv=None):
         default=4,
         help="Maximum complexity without docstrings to allow.",
     )
+    parser.add_argument(
+        "--exclude",
+        type=str,
+        nargs="+",
+        help="List of paths, used to omit files and/or directories from analysis",
+    )
     args = parser.parse_args(argv)
 
-    analyze_complexity_with_docstrings(args.files, args.max_complexity)
+    analyze_complexity_with_docstrings(args.files, args.max_complexity, excludes=args.exclude or [])
 
 
 if __name__ == "__main__":
