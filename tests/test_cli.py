@@ -46,3 +46,29 @@ def test_dir(capsys):
         "tests/assets/example.py:38: `complex_function_without_docstring` is too complex (7 > 4). Add a docstring.",
         "tests/assets/example2.py:1: `another_complex_function` is too complex (5 > 4). Add a docstring.",
     ]
+
+
+
+def test_multiple_inputs(capsys):
+    with pytest.raises(SystemExit):
+        main(["./tests/assets/example2.py", "./tests/assets/example.py"])
+    result = capsys.readouterr().out.strip().split("\n")
+    assert result == [
+        "tests/assets/example.py:8: `complex_method_without_docstring` is too complex (5 > 4). Add a docstring.",
+        "tests/assets/example.py:38: `complex_function_without_docstring` is too complex (7 > 4). Add a docstring.",
+        "tests/assets/example2.py:1: `another_complex_function` is too complex (5 > 4). Add a docstring.",
+    ]
+
+
+def test_unknown_path(capsys):
+    with pytest.raises(SystemExit):
+        main(["./messi.py"])
+    result = capsys.readouterr().out.strip().split("\n")
+    assert result == ["messi.py:1: No such file or directory (os error 2)"]
+
+
+def test_no_errors(capsys):
+    main(["./tests/assets/example3.py"])
+    result = capsys.readouterr().out.strip().split("\n")
+    assert result == [""]
+
