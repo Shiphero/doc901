@@ -1,4 +1,7 @@
+import json
+
 import pytest
+
 from doc901 import main
 
 
@@ -80,3 +83,29 @@ def test_no_errors(capsys):
     main(["./tests/assets/example3.py"])
     result = capsys.readouterr().out.strip().split("\n")
     assert result == [""]
+
+
+def test_default_json(capsys):
+    main(["./tests/assets/example.py", "--json"])
+    result = json.loads(capsys.readouterr().out.strip())
+    assert result == [
+        {"path": "tests/assets/example.py", "row": 8, "name": "complex_method_without_docstring", "complexity": 5},
+        {"path": "tests/assets/example.py", "row": 38, "name": "complex_function_without_docstring", "complexity": 7},
+    ]
+
+
+def test_default_with_ignore(tmp_path, capsys):
+    p = tmp_path / "ignore.json"
+    p.write_text(
+        json.dumps(
+            [
+                {"path": "tests/assets/example.py", "row": 8, "name": "complex_method_without_docstring", "complexity": 5},
+            ]
+        )
+    )
+    with pytest.raises(SystemExit):
+        main(["./tests/assets/example.py", "--ignore", str(p.resolve())])
+    result = capsys.readouterr().out.strip().split("\n")
+    assert result == [
+        "tests/assets/example.py:38: `complex_function_without_docstring` is too complex (7 > 4). Add a docstring.",
+    ]

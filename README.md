@@ -2,7 +2,7 @@
 
 `doc901` is a simple tool designed to ensure that Python methods and functions with a [high cyclomatic complexity](https://en.wikipedia.org/wiki/Cyclomatic_complexity) have proper docstrings. It uses [`ruff`](https://docs.astral.sh/ruff/) to analyze complexity and missing docstring on the same line. 
 
-## Why? How?
+## Why?
 
 Maintaining clean and readable code is crucial. Methods or functions with high complexity can be challenging to understand, especially without documentation. 
 
@@ -63,6 +63,42 @@ Output:
 ```
 example.py:1: `complex_function_without_docstring` is too complex (5 > 4). Add a docstring.
 ```
+
+## Ignoring legacy errors
+
+There are several ways to ignore errors:
+
+- Since `ruff` is used under the hood, you can add `noqa: D102` or `noqa: D103` comments to the line that defines the method or function.
+
+Alternatively, if you have a large codebase with many existing errors, you can use the `--ignore` flag and pass a JSON file containing the errors to ignore.
+
+You can generate this file by running the tool with the `--json` flag:
+
+```bash
+uvx doc901 --json ... > ignored.jwill output a JSON file son
+```
+
+This will output a JSON file listing the errors found. You can then edit this file to remove any errors you don't want to ignore. For example, the output might look like this:
+
+```json
+[
+    {
+        "path": "example.py", 
+        "row": 8, 
+        "name": "complex_method_without_docstring",
+        "complexity": 5
+    }
+]
+```
+
+Then in your normal runs, pass this file to the `--ignore` flag:
+
+```bash
+uvx doc901 --ignore ignored.json ...
+```
+
+Any violation that **matches both the path and the name** will be ignored. Note that the `row` is intentionally omitted because the exact line where a function is defined might change frequently. You can also add additional metadata to the JSON file, such as the person responsible for fixing the issue.
+
 
 ## Contribution
 

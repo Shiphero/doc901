@@ -7,13 +7,29 @@ import json
 from pathlib import Path
 import subprocess
 import sys
+import re
+
+
 from rich import print
 
 __version__ = "0.1"
 here = Path.cwd().resolve()
 
 
-def analyze_complexity_with_docstrings(files: list, complexity: int, excludes: list):
+def parse_name(message):
+    """parse the function name from a message"""
+    if match := re.search(r"`([^`]*)`", message):
+        return match.group(1)
+
+def parse_complexity(message):
+    """parse the complexity from a message"""
+    if match := re.search(r"\b(\d+)\b", message):
+        return int(match.group(1))
+
+
+def analyze_complexity_with_docstrings(
+    files: list, max_complexity: int, excludes: list, ignored_violations: set = set(), as_json: bool = False
+):
     """
     Run Ruff with a custom config to check methods with high complexity
     and missing docstrings.
@@ -24,7 +40,7 @@ def analyze_complexity_with_docstrings(files: list, complexity: int, excludes: l
         "check",
         "-e",
         "--config",
-        f"lint.mccabe.max-complexity={complexity}",
+        f"lint.mccabe.max-complexity={max_complexity}",
         "--select",
         "C901",
         "--select",
@@ -55,20 +71,35 @@ def analyze_complexity_with_docstrings(files: list, complexity: int, excludes: l
         )
         sys.exit(1)
 
-    # Extract complexity issues and docstring violations with both row and filename
-    complexity_issues = {
-        (issue["filename"], int(issue["noqa_row"])): issue["message"] for issue in issues if issue["code"] == "C901"
+    new_complexity_issues = {
+        (issue["filename"], int(issue["noqa_row"])): issue["message"]
+        for issue in issues
+        if issue["code"] == "C901"
+        if (str(Path(issue["filename"]).relative_to(here)), parse_name(issue["message"])) not in ignored_violations
     }
+
     docstring_issues = {(issue["filename"], issue["noqa_row"]) for issue in issues if issue["code"].startswith("D1")}
     # Identify violations: complexity issues without corresponding docstring rows
-    violations = sorted(set(complexity_issues.keys()) & docstring_issues)
+    violations = sorted(set(new_complexity_issues.keys()) & docstring_issues)
 
     if violations:
-        for violation in violations:
-            print(
-                f"[bold]{Path(violation[0]).relative_to(here)}:{violation[1]}[/bold]: {complexity_issues[violation]}. Add a docstring."
-            )
-        sys.exit(1)
+        if as_json:
+            ignore_data = [
+                {
+                    "path": str(Path(violation[0]).relative_to(here)),
+                    "row": violation[1],
+                    "name": parse_name(new_complexity_issues[violation]),
+                    "complexity": parse_complexity(new_complexity_issues[violation]),
+                }
+                for violation in violations
+            ]
+            print(json.dumps(ignore_data, indent=2))
+        else:
+            for violation in violations:
+                print(
+                    f"[bold]{Path(violation[0]).relative_to(here)}:{violation[1]}[/bold]: {new_complexity_issues[violation]}. Add a docstring."
+                )
+            sys.exit(1)
 
 
 def main(argv=None):
@@ -94,9 +125,28 @@ def main(argv=None):
         nargs="+",
         help="List of paths, used to omit files and/or directories from analysis",
     )
-    args = parser.parse_args(argv)
 
-    analyze_complexity_with_docstrings(args.files, args.max_complexity, excludes=args.exclude or [])
+    parser.add_argument(
+        "--ignore",
+        type=Path,
+        help="Path to containing violations to ignore in --json format.",
+    )
+
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output json for --ignore",
+    )
+    args = parser.parse_args(argv)
+    ignored_violations = {(i["path"], i["name"]) for i in json.loads(args.ignore.read_text())} if args.ignore else set()
+
+    analyze_complexity_with_docstrings(
+        args.files,
+        args.max_complexity,
+        excludes=args.exclude or [],
+        ignored_violations=ignored_violations,
+        as_json=args.json,
+    )
 
 
 if __name__ == "__main__":
