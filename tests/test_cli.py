@@ -99,7 +99,12 @@ def test_default_with_ignore(tmp_path, capsys):
     p.write_text(
         json.dumps(
             [
-                {"path": "tests/assets/example.py", "row": 8, "name": "complex_method_without_docstring", "complexity": 5},
+                {
+                    "path": "tests/assets/example.py",
+                    "row": 8,
+                    "name": "complex_method_without_docstring",
+                    "complexity": 5,
+                },
             ]
         )
     )

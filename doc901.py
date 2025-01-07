@@ -21,6 +21,7 @@ def parse_name(message):
     if match := re.search(r"`([^`]*)`", message):
         return match.group(1)
 
+
 def parse_complexity(message):
     """parse the complexity from a message"""
     if match := re.search(r"\b(\d+)\b", message):
