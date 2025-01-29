@@ -12,7 +12,7 @@ import re
 
 from rich import print
 
-__version__ = "0.2"
+__version__ = "0.2.1"
 here = Path.cwd().resolve()
 
 
